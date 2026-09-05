@@ -1,0 +1,8 @@
+spring:
+  profiles: prod
+
+logging:
+  level:
+    root: INFO
+
+# Production overrides (secrets should come from environment or vault)

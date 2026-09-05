@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: finance-ai-service
+
+# LLM and other service properties placeholder
+llm:
+  provider: local
+  apiKey: ""

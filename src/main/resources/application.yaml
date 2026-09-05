@@ -1,0 +1,54 @@
+server:
+  port: 9090
+spring:
+  application:
+    name: finance-ai-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/finance_db
+    username: postgres
+    password: P@ssw0rd
+  jpa:
+    hibernate:
+      ddl-auto: validate   # validate/update use migrations (Flyway/Liquibase) in real projects, not auto-DDL
+    open-in-view: false     # avoid lazy-loading surprises outside transactions
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.3
+    chat:
+      memory:
+        repository:
+          jdbc:
+            initialize-schema: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,mappings
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: true
+info:
+  app:
+    name: Finance AI Service
+    description: AI-powered financial intelligence and agent service
+    version: 0.0.1-SNAPSHOT
+
+app:
+  ai:
+    system-prompt: >
+      You are a knowledgeable financial assistant for a finance application.
+      Provide clear, accurate, and educational information on personal finance,
+      investing concepts, budgeting, and markets. You do not provide personalized
+      investment, tax, or legal advice, and you do not execute trades or access
+      account data. When a question requires licensed professional advice,
+      say so and recommend the user consult a qualified advisor. Be concise,
+      avoid speculation, and never fabricate financial figures or facts.

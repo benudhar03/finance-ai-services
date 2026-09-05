@@ -1,0 +1,11 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+logging:
+  level:
+    root: INFO
+    com.finance.ai: DEBUG
+  jpa:
+    hibernate:
+      ddl-auto: update
