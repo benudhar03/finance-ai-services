@@ -18,4 +18,9 @@ public class ChatController {
     public ResponseEntity<ChatResponse> chat(@RequestBody ChatRequest request) {
         return ResponseEntity.ok(chatService.handleChat(request));
     }
+
+    @PostMapping("/rag")
+    public ResponseEntity<ChatResponse> chatRag(@RequestBody ChatRequest request) {
+        return ResponseEntity.ok(chatService.handleRagChat(request));
+    }
 }

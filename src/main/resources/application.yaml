@@ -3,13 +3,17 @@ server:
 spring:
   application:
     name: finance-ai-service
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
   datasource:
-    url: jdbc:postgresql://localhost:5432/finance_db
+    url: jdbc:postgresql://localhost:5432/finance
     username: postgres
     password: P@ssw0rd
   jpa:
     hibernate:
-      ddl-auto: validate   # validate/update use migrations (Flyway/Liquibase) in real projects, not auto-DDL
+      ddl-auto: update   # validate/update use migrations (Flyway/Liquibase) in real projects, not auto-DDL
     open-in-view: false     # avoid lazy-loading surprises outside transactions
   ai:
     openai:
@@ -18,12 +22,18 @@ spring:
         options:
           model: gpt-4o-mini
           temperature: 0.3
+      embedding:
+        options:
+          model: text-embedding-3-small
     chat:
       memory:
         repository:
           jdbc:
             initialize-schema: always
-
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+        dimensions: 1536
 management:
   endpoints:
     web:
