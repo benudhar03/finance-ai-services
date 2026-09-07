@@ -2,7 +2,7 @@
 
 AI-powered financial intelligence service built with Java, Spring Boot, Spring AI, and OpenAI.
 
-The project is being developed as a progressive, production-oriented Finance AI platform. The implementation starts with LLM-powered chat and conversation history and will evolve toward financial tools, MCP, RAG, and Agentic AI.
+The project is being developed as a progressive, production-oriented Finance AI platform. The implementation started with LLM-powered chat and conversation history, and has since grown to include financial calculator tools, RAG-based document grounding, LLM-based agent routing, document management, and MCP server exposure. Auth, testing, and productionization remain ahead.
 
 ---
 
@@ -119,9 +119,10 @@ Group ID     : com.ai.service
 Artifact ID  : finance-ai-service
 Version      : 0.0.1-SNAPSHOT
 Java         : 21
+Base Package : com.finance.ai
 ```
 
-> The package names should remain consistent throughout the source tree. If the project has legacy `com.finance.ai` packages, they should be migrated consistently before adding new features.
+> The actual source tree uses `com.finance.ai` as its base package (not `com.ai.service`). Package names should remain consistent throughout the source tree going forward.
 
 ---
 
@@ -134,59 +135,50 @@ finance-ai-service
 │   ├── main
 │   │   ├── java
 │   │   │   └── com
-│   │   │       └── ai
-│   │   │           └── service
+│   │   │       └── finance
+│   │   │           └── ai
 │   │   │               │
-│   │   │               ├── FinanceAiApplication.java
+│   │   │               ├── FinanceAiServiceApplication.java
 │   │   │               │
 │   │   │               ├── chat
-│   │   │               │   ├── controller
-│   │   │               │   ├── dto
-│   │   │               │   └── service
+│   │   │               │   ├── controller     (ChatController, ConversationController)
+│   │   │               │   ├── dto            (ChatRequest, ChatResponse, CreateConversationRequest, ConversationResponse, MessageResponse)
+│   │   │               │   └── service        (ChatService)
 │   │   │               │
 │   │   │               ├── llm
-│   │   │               │   ├── config
-│   │   │               │   └── service
+│   │   │               │   ├── config         (LlmConfig — ChatClient bean, tools, advisors)
+│   │   │               │   └── service         (LlmService)
 │   │   │               │
 │   │   │               ├── memory
-│   │   │               │   ├── model
-│   │   │               │   ├── repository
-│   │   │               │   └── service
+│   │   │               │   ├── model          (Conversation, ConversationMessageAudit)
+│   │   │               │   ├── repository     (ConversationRepository, ConversationMessageAuditRepository)
+│   │   │               │   └── service        (ConversationAuditService, MemoryService)
 │   │   │               │
 │   │   │               ├── tools
-│   │   │               │   ├── account
-│   │   │               │   ├── transaction
-│   │   │               │   └── analytics
+│   │   │               │   └── FinanceCalculatorTools   (@Tool: EMI, compound interest, SIP)
 │   │   │               │
 │   │   │               ├── mcp
-│   │   │               │   ├── client
-│   │   │               │   ├── config
-│   │   │               │   └── service
+│   │   │               │   └── config         (McpToolConfig — exposes tools via MCP server)
 │   │   │               │
 │   │   │               ├── rag
-│   │   │               │   ├── ingestion
-│   │   │               │   ├── embedding
-│   │   │               │   ├── retrieval
-│   │   │               │   └── service
+│   │   │               │   ├── controller     (DocumentController)
+│   │   │               │   ├── dto            (IngestResponse, DocumentSummary)
+│   │   │               │   ├── model          (UploadedDocument)
+│   │   │               │   ├── repository     (DocumentRepository)
+│   │   │               │   └── service        (DocumentIngestionService, RagChatService)
 │   │   │               │
 │   │   │               ├── agent
-│   │   │               │   ├── config
-│   │   │               │   ├── state
-│   │   │               │   ├── workflow
-│   │   │               │   └── service
+│   │   │               │   └── service        (IntentClassifierService — RAG-vs-chat routing)
 │   │   │               │
-│   │   │               ├── common
-│   │   │               │   ├── constants
-│   │   │               │   ├── exception
-│   │   │               │   ├── response
-│   │   │               │   └── util
+│   │   │               ├── exception          (LlmUnavailableException, ConversationNotFoundException,
+│   │   │               │                        DocumentNotFoundException, GlobalExceptionHandler)
+│   │   │               │
+│   │   │               ├── model              (MessageRole)
 │   │   │               │
 │   │   │               └── config
 │   │   │
 │   │   └── resources
-│   │       ├── application.yml
-│   │       ├── application-local.yml
-│   │       └── application-prod.yml
+│   │       └── application.yaml
 │   │
 │   └── test
 │
@@ -196,6 +188,8 @@ finance-ai-service
 ├── .gitignore
 └── README.md
 ```
+
+> Note: earlier drafts of this structure (and some AI-autocomplete suggestions during development) included additional subpackages — `tools/account`, `tools/transaction`, `tools/analytics`, `mcp/client`, `mcp/service`, `rag/ingestion`, `rag/embedding`, `rag/retrieval`, `agent/config`, `agent/state`, `agent/workflow` — that were never implemented with real logic and were removed. The structure above reflects what is actually built and wired in.
 
 ---
 
@@ -595,22 +589,62 @@ mvn spring-boot:run -Dspring-boot.run.profiles=local
 
 ---
 
-# API Testing
+# API Reference
 
-Example chat request:
+All endpoints are served under `http://localhost:9090`.
 
-```http
-POST http://localhost:9090/api/chat
-Content-Type: application/json
-```
+## Chat
 
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/chat` | Plain chat (calculator tools available, no document retrieval) |
+| POST | `/api/chat/rag` | Chat with retrieval always applied against uploaded documents |
+| POST | `/api/chat/agent` | Chat with LLM-based routing — automatically decides whether to use RAG |
+
+Request body (all three):
 ```json
 {
-  "message": "Explain what an emergency fund is in simple terms."
+  "message": "Explain what an emergency fund is in simple terms.",
+  "conversationId": null,
+  "userId": null
 }
 ```
+`conversationId` may be omitted/null to start a new conversation, or set to an existing conversation's id to continue it (an unknown id returns `404`).
 
-The response should contain the generated assistant response.
+Response body:
+```json
+{
+  "reply": "...",
+  "conversationId": "b7e2...",
+  "classifiedAsRag": null
+}
+```
+`classifiedAsRag` is only populated (`true`/`false`) for `/api/chat/agent` responses; it is `null` for the two explicit endpoints.
+
+## Conversations
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/conversations` | Explicitly create a new, empty conversation |
+| GET | `/api/conversations/{id}/messages` | Fetch full message history for a conversation, chronological |
+
+## Documents (RAG)
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/documents/upload` | Upload a PDF (multipart, field name `file`) for ingestion into the vector store |
+| GET | `/api/documents` | List all uploaded documents with chunk counts and upload timestamps |
+| DELETE | `/api/documents/{id}` | Delete a document and its associated vector store chunks |
+
+## MCP
+
+The finance calculator tools (`calculateEmi`, `calculateCompoundInterest`, `calculateSip`) are also exposed as an MCP server at:
+
+```http
+POST http://localhost:9090/mcp
+```
+
+Any MCP-compatible client can discover and invoke them via standard JSON-RPC (`tools/list`, `tools/call`).
 
 ---
 
@@ -688,24 +722,25 @@ The AI layer should not directly own or duplicate financial domain logic. Financ
 ```text
 [✓] Project foundation
 [✓] Spring Boot application
-[✓] LLM configuration
-[✓] OpenAI integration foundation
-[✓] Chat API foundation
-[✓] Conversation/memory architecture foundation
+[✓] LLM configuration (ChatClient, system prompt, chat memory advisor)
+[✓] OpenAI integration (chat + embeddings)
+[✓] Chat API (/api/chat) — tested
+[✓] Conversation lifecycle (create, resolve, 404 on unknown id) — tested
+[✓] Persistent conversation history (GET /messages) — tested
+[✓] Financial calculator tools (EMI, compound interest, SIP) — tested
+[✓] RAG ingestion (PDF → chunks → pgvector) — tested
+[✓] Vector retrieval (QuestionAnswerAdvisor, /api/chat/rag) — tested
+[✓] Agentic routing (LLM-based RAG-vs-chat classification, /api/chat/agent) — tested
+[✓] Document management (list, delete with vector cleanup) — tested
+[✓] MCP server exposure (calculator tools via MCP protocol) — tested
 
-[ ] Complete persistent conversation flow
-[ ] Prompt engineering layer
-[ ] Financial account tools
-[ ] Transaction tools
-[ ] Analytics tools
-[ ] MCP integration
-[ ] RAG ingestion
-[ ] Vector retrieval
-[ ] Agentic workflow
-[ ] Security
+[ ] Financial account/transaction/analytics tools (real domain data — currently only generic calculators exist)
+[ ] MCP client (consuming external MCP servers)
+[ ] Security / Auth (userId is currently a trusted, unverified client-supplied string)
 [ ] Kafka/event-driven processing
 [ ] Redis caching
-[ ] Observability stack
+[ ] Observability stack (structured logging, tracing, metrics dashboards)
+[ ] Integration test suite (Testcontainers)
 [ ] Docker
 [ ] Kubernetes
 [ ] AWS deployment
