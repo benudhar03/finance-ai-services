@@ -1,6 +1,6 @@
 package com.finance.ai.llm.config;
 
-import com.finance.ai.tools.FinanceCalculatorTools;
+import com.finance.ai.mcp.tools.FinanceCalculatorTools;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;

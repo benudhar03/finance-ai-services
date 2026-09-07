@@ -34,6 +34,11 @@ spring:
       pgvector:
         initialize-schema: true
         dimensions: 1536
+    mcp:
+      server:
+        name: finance-ai-service
+        version: 1.0.0
+        protocol: STREAMABLE
 management:
   endpoints:
     web:
