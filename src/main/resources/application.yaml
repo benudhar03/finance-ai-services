@@ -51,7 +51,7 @@ info:
     name: Finance AI Service
     description: AI-powered financial intelligence and agent service
     version: 0.0.1-SNAPSHOT
-    
+
 logging:
   level:
     com.finance.ai: DEBUG
