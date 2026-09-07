@@ -1,4 +1,4 @@
-package com.finance.ai.tools;
+package com.finance.ai.mcp.tools;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
