@@ -11,5 +11,6 @@ public class ChatResponse {
 
     private String reply;
     private String conversationId;
+    private Boolean classifiedAsRag;
 }
 
