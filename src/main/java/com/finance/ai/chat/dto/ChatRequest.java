@@ -11,6 +11,7 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class ChatRequest {
 
+    @NotBlank(message = "User ID must not be empty")
     private String userId;
 
     @NotBlank(message = "Message must not be empty")

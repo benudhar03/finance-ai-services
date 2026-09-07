@@ -21,9 +21,7 @@ public class RagChatService {
         if (!StringUtils.hasText(prompt)) {
             return "";
         }
-
         QuestionAnswerAdvisor qaAdvisor = QuestionAnswerAdvisor.builder(vectorStore).build();
-
         String reply = chatClient
                 .prompt()
                 .advisors(qaAdvisor)

@@ -1,5 +1,6 @@
 package com.finance.ai.llm.config;
 
+import com.finance.ai.tools.FinanceCalculatorTools;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
@@ -16,9 +17,10 @@ public class LlmConfig {
     private String systemPrompt;
 
     @Bean
-    public ChatClient chatClient(ChatModel chatModel, ChatMemory chatMemory) {
+    public ChatClient chatClient(ChatModel chatModel, ChatMemory chatMemory, FinanceCalculatorTools calculatorTools) {
         return ChatClient.builder(chatModel)
                 .defaultSystem(systemPrompt)
+                .defaultTools(calculatorTools)
                 .defaultAdvisors(
                         MessageChatMemoryAdvisor.builder(chatMemory).build(),
                         new SimpleLoggerAdvisor()

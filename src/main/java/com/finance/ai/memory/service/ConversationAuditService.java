@@ -1,6 +1,7 @@
 package com.finance.ai.memory.service;
 
 import com.finance.ai.chat.dto.ChatRequest;
+import com.finance.ai.exception.ConversationNotFoundException;
 import com.finance.ai.memory.model.*;
 import com.finance.ai.memory.repository.*;
 import com.finance.ai.model.MessageRole;
@@ -31,12 +32,20 @@ public class ConversationAuditService {
     public UUID resolveConversation(ChatRequest request) {
         String conversationId = request.getConversationId();
         String userId = request.getUserId();
+
         if (conversationId != null && !conversationId.isBlank()) {
-            UUID id = UUID.fromString(conversationId);
-            if (conversationRepository.existsById(id)) {
-                return id;
+            UUID uuId;
+            try {
+                uuId = UUID.fromString(conversationId);
+            } catch (IllegalArgumentException e) {
+                throw new ConversationNotFoundException("Invalid conversation id: " + conversationId);
             }
+            if (conversationRepository.existsById(uuId)) {
+                return uuId;
+            }
+            throw new ConversationNotFoundException("No conversation found with id " + conversationId);
         }
+
         Conversation conversation = new Conversation();
         conversation.setUserId(userId);
         conversation.setQuery(request.getMessage());
