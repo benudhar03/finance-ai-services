@@ -33,7 +33,7 @@ public class ChatService {
 
     public ChatResponse handleAgentChat(ChatRequest request) {
         UUID conversationId = auditService.resolveConversation(request);
-        boolean useRag = intentClassifierService.requiresDocumentRetrieval(request.getMessage(), conversationId.toString());
+        boolean useRag = intentClassifierService.requiresDocumentRetrieval(request.getMessage());
         return processWithResolvedId(request, useRag, useRag, conversationId);
     }
 

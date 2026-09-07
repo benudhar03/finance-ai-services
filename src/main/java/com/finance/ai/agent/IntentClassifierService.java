@@ -1,14 +1,12 @@
 package com.finance.ai.agent;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class IntentClassifierService {
 
     private static final String CLASSIFIER_SYSTEM_PROMPT = """
@@ -23,13 +21,16 @@ public class IntentClassifierService {
               or casual conversation.
             """;
 
-    private final ChatClient chatClient;
+    private final ChatClient classifierChatClient;
 
-    public boolean requiresDocumentRetrieval(String userMessage, String conversationId) {
-        String decision = chatClient
+    public IntentClassifierService(@Qualifier("classifierChatClient") ChatClient classifierChatClient) {
+        this.classifierChatClient = classifierChatClient;
+    }
+
+    public boolean requiresDocumentRetrieval(String userMessage) {
+        String decision = classifierChatClient
                 .prompt()
                 .system(CLASSIFIER_SYSTEM_PROMPT)
-                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId))
                 .user(userMessage)
                 .call()
                 .content();
