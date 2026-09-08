@@ -8,7 +8,7 @@ The project is being developed as a progressive, production-oriented Finance AI 
 
 ## Project Overview
 
-**Finance AI Service** provides a conversational AI layer for a financial application.
+**Agentic AI Service** provides a conversational AI layer for a financial application.
 
 The long-term goal is to allow a user to ask natural-language questions such as:
 
