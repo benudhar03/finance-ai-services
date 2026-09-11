@@ -2,6 +2,9 @@ package com.finance.ai.chat.service;
 
 import com.finance.ai.agent.IntentClassifierService;
 import com.finance.ai.exception.LlmUnavailableException;
+import com.finance.ai.exception.PromptGuardException;
+import com.finance.ai.guardrail.OutputGuardService;
+import com.finance.ai.guardrail.PromptGuardService;
 import com.finance.ai.memory.service.ConversationAuditService;
 import com.finance.ai.rag.service.RagChatService;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +24,10 @@ public class ChatService {
     private final LlmService llmService;
     private final RagChatService ragChatService;
     private final ConversationAuditService auditService;
+    private final PromptGuardService promptGuardService;
+    private final OutputGuardService outputGuardService;
     private final IntentClassifierService intentClassifierService;
+
 
     public ChatResponse handleChat(ChatRequest request) {
         return process(request, false);
@@ -43,10 +49,21 @@ public class ChatService {
     }
 
     private ChatResponse processWithResolvedId(ChatRequest request, boolean useRag, Boolean classifiedAsRag, UUID conversationId) {
+        var inputCheck = promptGuardService.screenUserInput(request.getMessage());
+        if (inputCheck.flagged()) {
+            log.warn("Flagged input for conversation {}: {}", conversationId, inputCheck.reason());
+            throw new PromptGuardException("Your message could not be processed. Please rephrase.");
+        }
         try {
             String reply = useRag
                     ? ragChatService.generateGroundedReply(request.getMessage(), conversationId.toString())
                     : llmService.generateReply(request.getMessage(), conversationId.toString());
+
+            var outputCheck = outputGuardService.screen(reply);
+            if (outputCheck.flagged()) {
+                log.warn("Flagged output for conversation {}: {}", conversationId, outputCheck.reason());
+                reply = outputGuardService.sanitize(reply);
+            }
             auditService.recordExchange(conversationId, request.getMessage(), reply);
             return new ChatResponse(reply, conversationId.toString(), classifiedAsRag);
         } catch (Exception e) {
