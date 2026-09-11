@@ -6,6 +6,7 @@ import com.finance.ai.rag.dto.IngestResponse;
 import com.finance.ai.rag.model.UploadedDocument;
 import com.finance.ai.rag.repository.DocumentRepository;
 import com.finance.ai.rag.service.DocumentIngestionService;
+import com.finance.ai.rag.service.PdfFileValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
@@ -25,9 +26,11 @@ public class DocumentController {
 
     private final DocumentIngestionService ingestionService;
     private final DocumentRepository documentRepository;
+    private final PdfFileValidator pdfFileValidator;
 
     @PostMapping(value = "/upload", consumes = "multipart/form-data")
     public ResponseEntity<IngestResponse> upload(@RequestParam("file") MultipartFile file) throws IOException {
+        pdfFileValidator.validate(file);
         Resource resource = new InputStreamResource(file.getInputStream());
         UUID documentId = ingestionService.ingestPdf(resource, file.getOriginalFilename());
         int chunkCount = documentRepository.findById(documentId)

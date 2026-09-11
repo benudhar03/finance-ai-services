@@ -12,9 +12,9 @@
     </parent>
 
 	<groupId>com.finance.ai</groupId>
-	<artifactId>finance-ai-service</artifactId>
+	<artifactId>agentic-finance-ai</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>finance-ai-service</name>
+    <name>agentic-finance-ai</name>
     <description>AI-powered financial intelligence and agent service</description>
 
     <properties>
