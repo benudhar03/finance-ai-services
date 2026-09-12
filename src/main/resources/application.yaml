@@ -9,8 +9,8 @@ spring:
       max-request-size: 20MB
   datasource:
     url: jdbc:postgresql://localhost:5432/finance
-    username: postgres
-    password: P@ssw0rd
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:P@ssw0rd}
   jpa:
     hibernate:
       ddl-auto: update   # validate/update use migrations (Flyway/Liquibase) in real projects, not auto-DDL
@@ -44,6 +44,7 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: https://accounts.google.com
+
 info:
   app:
     name: Agentic Finance AI
@@ -66,6 +67,10 @@ app:
       account data. When a question requires licensed professional advice,
       say so and recommend the user consult a qualified advisor. Be concise,
       avoid speculation, and never fabricate financial figures or facts.
+
+# NOTE: rate limiting for /api/chat/** is NOT configured here — it's built from
+# Java RateLimiterConfig beans (see RateLimiterConfigBeans) and applied dynamically
+# per client key in ChatRateLimitInterceptor, not via resilience4j.ratelimiter.* YAML.
 
 resilience4j:
   timelimiter:

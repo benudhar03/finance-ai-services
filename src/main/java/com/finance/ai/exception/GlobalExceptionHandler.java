@@ -46,6 +46,11 @@ public class GlobalExceptionHandler {
                 .body(body("Something went wrong. Please try again.", null));
     }
 
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleRateLimit(RateLimitExceededException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body(ex.getMessage(), null));
+    }
+
     private Map<String, Object> body(String message, Object details) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("timestamp", Instant.now().toString());
