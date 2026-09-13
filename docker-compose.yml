@@ -18,6 +18,44 @@ services:
       timeout: 5s
       retries: 10
 
+  kafka:
+    image: apache/kafka:4.1.2
+    container_name: finance-ai-kafka
+    restart: unless-stopped
+    ports:
+      # Host-reachable listener, e.g. for a local kafka-ui, kcat, or debugging from your machine.
+      - "9092:9092"
+    environment:
+      # --- KRaft (no Zookeeper) — single-node combined broker+controller ---
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@finance-ai-kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # --- Listeners ---
+      # PLAINTEXT      -> used by other containers on the compose network (e.g. the app service)
+      # PLAINTEXT_HOST -> used when connecting from the host machine (localhost:9092)
+      KAFKA_LISTENERS: PLAINTEXT://:29092,CONTROLLER://:9093,PLAINTEXT_HOST://:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://finance-ai-kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # --- Single-node dev sensible defaults ---
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: 4L6g3nShT-eMCtK--X86sw
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
   app:
     build:
       context: .
@@ -27,13 +65,33 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/finance
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-P@ssw0rd}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: finance-ai-kafka:29092
       OPENAI_API_KEY: ${OPENAI_API_KEY}
     ports:
       - "9090:9090"
 
+  # Optional but genuinely useful during development — a browser UI to inspect
+  # topics, consumer group lag, and messages without any CLI tooling.
+  # Remove this service entirely if you don't want it.
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: finance-ai-kafka-ui
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: finance-ai-kafka:29092
+    ports:
+      - "8089:8080"
+
 volumes:
   pgdata:
+  kafka-data:

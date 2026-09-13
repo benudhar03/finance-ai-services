@@ -44,6 +44,31 @@ spring:
       resourceserver:
         jwt:
           issuer-uri: https://accounts.google.com
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      enable-idempotence: true
+      retries: 3
+      properties:
+        max.in.flight.requests.per.connection: 5
+        delivery.timeout.ms: 30000
+        request.timeout.ms: 10000
+        linger.ms: 5
+        compression.type: snappy
+    consumer:
+      group-id: finance-ai-service-ingestion
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: "com.finance.ai.events"
+        spring.json.value.default.type: com.finance.ai.events.DocumentUploadedEvent
+    listener:
+      ack-mode: manual_immediate
 
 info:
   app:
@@ -67,11 +92,18 @@ app:
       account data. When a question requires licensed professional advice,
       say so and recommend the user consult a qualified advisor. Be concise,
       avoid speculation, and never fabricate financial figures or facts.
+  ingestion:
+    topic: document-uploaded
+    dlt-topic: document-uploaded.DLT
+    max-retry-attempts: 3
+    retry-backoff-ms: 2000
+    publish-timeout-ms: 10000
+  storage:
+    pending-uploads-dir: ${PENDING_UPLOADS_DIR:/tmp/finance-ai-pending-uploads}
 
 # NOTE: rate limiting for /api/chat/** is NOT configured here — it's built from
 # Java RateLimiterConfig beans (see RateLimiterConfigBeans) and applied dynamically
 # per client key in ChatRateLimitInterceptor, not via resilience4j.ratelimiter.* YAML.
-
 resilience4j:
   timelimiter:
     instances:

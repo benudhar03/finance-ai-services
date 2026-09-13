@@ -51,6 +51,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body(ex.getMessage(), null));
     }
 
+    @ExceptionHandler(EventPublishException.class)
+    public ResponseEntity<Map<String, Object>> handleEventPublish(EventPublishException ex) {
+        log.error("Event publish failure", ex);
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(body("Could not queue document for processing. Please try again.", null));
+    }
+
     private Map<String, Object> body(String message, Object details) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("timestamp", Instant.now().toString());

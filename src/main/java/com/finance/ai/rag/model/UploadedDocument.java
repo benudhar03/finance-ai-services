@@ -25,6 +25,12 @@ public class UploadedDocument {
     @Column(nullable = false)
     private int chunkCount;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private DocumentStatus status = DocumentStatus.PENDING;
+
+    private String errorMessage; // populated only if status == FAILED
+
     @PrePersist
     void prePersist() {
         if (id == null) {
