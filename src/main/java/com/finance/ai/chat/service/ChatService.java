@@ -1,6 +1,8 @@
 package com.finance.ai.chat.service;
 
 import com.finance.ai.agent.IntentClassifierService;
+import com.finance.ai.agent.model.QueryIntent;
+import com.finance.ai.agent.model.QueryIntentResult;
 import com.finance.ai.chat.dto.ChatRequest;
 import com.finance.ai.chat.dto.ChatResponse;
 import com.finance.ai.exception.LlmUnavailableException;
@@ -22,6 +24,8 @@ import java.util.function.Supplier;
 @RequiredArgsConstructor
 public class ChatService {
 
+    private static final int HISTORY_MESSAGE_LIMIT = 5;
+
     private final ResilientLlmGateway llmGateway;
     private final ConversationAuditService auditService;
     private final IntentClassifierService intentClassifierService;
@@ -29,37 +33,48 @@ public class ChatService {
     private final OutputGuardService outputGuardService;
 
     public ChatResponse handleChat(ChatRequest request) {
-        return process(request, false);
+        UUID conversationId = auditService.resolveConversation(request);
+        return process(request, conversationId, false);
     }
 
     public ChatResponse handleRagChat(ChatRequest request) {
-        return process(request, true);
+        UUID conversationId = auditService.resolveConversation(request);
+        return process(request, conversationId, true);
     }
 
     public ChatResponse handleAgentChat(ChatRequest request) {
         UUID conversationId = auditService.resolveConversation(request);
-        boolean useRag = intentClassifierService.requiresDocumentRetrieval(request.getMessage());
-        return processWithResolvedId(request, useRag, useRag, conversationId);
+        return process(request, conversationId, false);
     }
 
-    private ChatResponse process(ChatRequest request, boolean useRag) {
-        UUID conversationId = auditService.resolveConversation(request);
-        return processWithResolvedId(request, useRag, null, conversationId);
-    }
-
-    private ChatResponse processWithResolvedId(ChatRequest request, boolean useRag, Boolean classifiedAsRag, UUID conversationId) {
+    private ChatResponse process(ChatRequest request, UUID conversationId, boolean forceRag) {
         var inputCheck = promptGuardService.screenUserInput(request.getMessage());
         if (inputCheck.flagged()) {
             log.warn("Flagged input for conversation {}: {}", conversationId, inputCheck.reason());
             throw new PromptGuardException("Your message could not be processed. Please rephrase.");
         }
 
-        String label = useRag ? "RAG" : "LLM";
-        Supplier<CompletableFuture<String>> call = useRag
-                ? () -> llmGateway.generateGroundedReplyAsync(request.getMessage(), conversationId.toString())
-                : () -> llmGateway.generateReplyAsync(request.getMessage(), conversationId.toString());
+        String history = auditService.getRecentHistory(conversationId, HISTORY_MESSAGE_LIMIT);
+        QueryIntentResult intentResult = intentClassifierService.classify(request.getMessage(), history);
 
-        String reply = callGuarded(call, conversationId, label);
+        // Short-circuit before any expensive/risky LLM generation call
+        if (intentResult.intent() == QueryIntent.OUT_OF_SCOPE) {
+            return shortCircuit(request, conversationId,
+                    "I'm focused on personal finance topics — I'm not able to help with that here.");
+        }
+        if (intentResult.intent() == QueryIntent.ADVICE_REQUEST) {
+            return shortCircuit(request, conversationId,
+                    "I can explain the concepts involved, but personalized investment, tax, or legal advice needs a licensed professional — I'd recommend speaking with one for your specific situation.");
+        }
+
+        boolean useRag = forceRag || intentResult.requiresDocumentRetrieval();
+        String queryForModel = intentResult.enrichedQuery();
+
+        Supplier<CompletableFuture<String>> call = useRag
+                ? () -> llmGateway.generateGroundedReplyAsync(queryForModel, conversationId.toString())
+                : () -> llmGateway.generateReplyAsync(queryForModel, conversationId.toString());
+
+        String reply = callGuarded(call, conversationId, useRag ? "RAG" : "LLM");
 
         var outputCheck = outputGuardService.screen(reply);
         if (outputCheck.flagged()) {
@@ -68,7 +83,12 @@ public class ChatService {
         }
 
         auditService.recordExchange(conversationId, request.getMessage(), reply);
-        return new ChatResponse(reply, conversationId.toString(), classifiedAsRag);
+        return new ChatResponse(reply, conversationId.toString(), useRag);
+    }
+
+    private ChatResponse shortCircuit(ChatRequest request, UUID conversationId, String reply) {
+        auditService.recordExchange(conversationId, request.getMessage(), reply);
+        return new ChatResponse(reply, conversationId.toString(), false);
     }
 
     private String callGuarded(Supplier<CompletableFuture<String>> call, UUID conversationId, String label) {

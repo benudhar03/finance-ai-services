@@ -6,11 +6,15 @@ import com.finance.ai.memory.model.*;
 import com.finance.ai.memory.repository.*;
 import com.finance.ai.model.MessageRole;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -74,5 +78,18 @@ public class ConversationAuditService {
     @Transactional(readOnly = true)
     public boolean conversationExists(UUID conversationId) {
         return conversationRepository.existsById(conversationId);
+    }
+
+    @Transactional(readOnly = true)
+    public String getRecentHistory(UUID conversationId, int messageLimit) {
+        List<ConversationMessageAudit> recent = messageRepository
+                .findByConversationIdOrderByCreatedAtDesc(conversationId, PageRequest.of(0, messageLimit));
+
+        List<ConversationMessageAudit> chronological = new ArrayList<>(recent);
+        Collections.reverse(chronological);
+
+        return chronological.stream()
+                .map(m -> m.getRole().name() + ": " + m.getContent())
+                .collect(Collectors.joining("\n"));
     }
 }
